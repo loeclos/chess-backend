@@ -25,20 +25,21 @@ app.get('/', (req, res) => {
     res.send('Chess backend is running.');
 });
 
+const DISCONNECT_TIMEOUT_MS = 15000; // 15 seconds grace period
+const disconnectTimers = new Map();  // socket.id => timeoutId
+
 io.on('connection', (socket) => {
     console.log('🔌 New client connected:', socket.id);
 
     socket.on('join-game', ({ code }) => {
+        if (!code) return;
         console.log(`♟️ Player ${socket.id} joined game: ${code}`);
-        
-        if (!games.has(code)) {
-            games.set(code, []);
-        }
+
+        if (!games.has(code)) games.set(code, []);
 
         const players = games.get(code);
 
         if (players.length >= 2) {
-            console.log(`❌ Game ${code} already full`);
             socket.emit('error', 'Game full');
             return;
         }
@@ -48,8 +49,13 @@ io.on('connection', (socket) => {
         socket.gameCode = code;
 
         if (players.length === 2) {
-            console.log(`✅ Game ${code} is starting`);
             players.forEach(s => s.emit('start-game'));
+        }
+
+        // Cancel pending disconnect timeout if reconnecting
+        if (disconnectTimers.has(socket.id)) {
+            clearTimeout(disconnectTimers.get(socket.id));
+            disconnectTimers.delete(socket.id);
         }
     });
 
@@ -63,19 +69,22 @@ io.on('connection', (socket) => {
         const code = socket.gameCode;
         console.log(`🚪 Player ${socket.id} disconnected from game ${code}`);
 
-        if (code && games.has(code)) {
-            const players = games.get(code).filter(s => s.id !== socket.id);
-            games.set(code, players);
+        // Wait before declaring game over
+        const timeoutId = setTimeout(() => {
+            if (code && games.has(code)) {
+                const players = games.get(code).filter(s => s.id !== socket.id);
+                games.set(code, players);
 
-            if (players.length > 0) {
-                players.forEach(s => s.emit('game-over-disconnect'));
-            } else {
-                games.delete(code);
+                if (players.length > 0) {
+                    players.forEach(s => s.emit('game-over-disconnect'));
+                } else {
+                    games.delete(code);
+                }
             }
-        }
-    });
-});
 
-server.listen(PORT, () => {
-    console.log(`🚀 Server running on port ${PORT}`);
+            disconnectTimers.delete(socket.id);
+        }, DISCONNECT_TIMEOUT_MS);
+
+        disconnectTimers.set(socket.id, timeoutId);
+    });
 });
