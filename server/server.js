@@ -8,10 +8,13 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
     cors: {
-        origin: '*', // You can restrict this in production
-        methods: ['GET', 'POST']
-    }
+        origin: 'https://chessgame-85747.vercel.app', // exact frontend origin
+        methods: ['GET', 'POST'],
+        credentials: true,
+    },
+    transports: ['websocket', 'polling'],
 });
+
 
 const PORT = process.env.PORT || 3000;
 
