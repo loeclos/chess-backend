@@ -25,6 +25,7 @@ app.get('/', (req, res) => {
     res.send('Chess backend is running.');
 });
 
+
 const DISCONNECT_TIMEOUT_MS = 15000; // 15 seconds grace period
 const disconnectTimers = new Map();  // socket.id => timeoutId
 
@@ -87,4 +88,9 @@ io.on('connection', (socket) => {
 
         disconnectTimers.set(socket.id, timeoutId);
     });
+});
+
+
+server.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
 });
