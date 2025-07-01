@@ -8,7 +8,10 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
     cors: {
-        origin: 'https://chessgame-85747.vercel.app', // exact frontend origin
+        origin: [
+            'https://chessgame-85747.vercel.app', // production frontend
+            'http://localhost:3000'               // local frontend
+        ],
         methods: ['GET', 'POST'],
         credentials: true,
     },
